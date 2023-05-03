@@ -11,8 +11,8 @@
       ],
       "includePath": [
         "${workspaceFolder}/**",
-        "/Users/ansel/Documents/DaisyExamples/libDaisy/**",
-        "/Users/ansel/Documents/DaisyExamples/DaisySP/**"
+        "/Users/ansel/Documents/DaisyExamples/libDaisy/",
+        "/Users/ansel/Documents/DaisyExamples/DaisySP/"
       ],
       "name": "Win32",
       "windowsSdkVersion": "10.0.17763.0"

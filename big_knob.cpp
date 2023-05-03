@@ -20,6 +20,9 @@ int main(void) {
     hw.SetAudioBlockSize(4);  // number of samples handled per callback
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
     hw.StartAudio(AudioCallback);
+    hw.StartLog(true);
+    hw.PrintLine("Hello World");
+
     while (1) {
     }
 }
