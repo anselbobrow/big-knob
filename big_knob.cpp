@@ -224,12 +224,12 @@ void AudioCallback(AudioHandle::InputBuffer  in,
 int main(void) {
     hw.Init();
 
-    // Oscillators setup
+    // oscillators setup
     osc1.Init(hw.AudioSampleRate());
     osc2.Init(hw.AudioSampleRate());
     osc3.Init(hw.AudioSampleRate());
 
-    // Filters setup
+    // filters setup
     flt1.Init(hw.AudioSampleRate());
     flt2.Init(hw.AudioSampleRate());
     flt3.Init(hw.AudioSampleRate());
@@ -237,7 +237,7 @@ int main(void) {
     // FXs setup
     reverb.Init(hw.AudioSampleRate());
 
-    // adc setup
+    // ADC setup
     AdcChannelConfig adc_config[NUM_MUXES];
     adc_config[0].InitMux(A0, 8, D1, D2, D3);
     adc_config[1].InitMux(A1, 8, D4, D5, D6);
@@ -264,7 +264,7 @@ int main(void) {
     inPins[I_REVERB].Init(D27, GPIO::Mode::INPUT, GPIO::Pull::PULLDOWN);
     inPins[I_SPEAKERS].Init(D28, GPIO::Mode::INPUT, GPIO::Pull::PULLDOWN);
 
-    // Audio start
+    // audio start
     hw.StartAudio(AudioCallback);
 
     while (1) {
