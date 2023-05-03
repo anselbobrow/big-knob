@@ -245,8 +245,7 @@ build/big_knob.o: big_knob.cpp \
  /Users/ansel/Documents/DaisyExamples/DaisySP//Source/Utility/metro.h \
  /Users/ansel/Documents/DaisyExamples/DaisySP//Source/Utility/port.h \
  /Users/ansel/Documents/DaisyExamples/DaisySP//Source/Utility/samplehold.h \
- /Users/ansel/Documents/DaisyExamples/DaisySP//Source/Utility/smooth_random.h \
- patchbay.h
+ /Users/ansel/Documents/DaisyExamples/DaisySP//Source/Utility/smooth_random.h
 /Users/ansel/Documents/DaisyExamples/libDaisy//Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h7xx.h:
 /Users/ansel/Documents/DaisyExamples/libDaisy//Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h750xx.h:
 /Users/ansel/Documents/DaisyExamples/libDaisy//Drivers/CMSIS/Include/core_cm7.h:
@@ -494,4 +493,3 @@ build/big_knob.o: big_knob.cpp \
 /Users/ansel/Documents/DaisyExamples/DaisySP//Source/Utility/port.h:
 /Users/ansel/Documents/DaisyExamples/DaisySP//Source/Utility/samplehold.h:
 /Users/ansel/Documents/DaisyExamples/DaisySP//Source/Utility/smooth_random.h:
-patchbay.h:
