@@ -4,7 +4,7 @@
 #define NUM_OUT_PINS 13
 #define NUM_IN_PINS  9
 #define NUM_KNOBS    18
-#define NUM_MUXES    3
+#define NUM_MUXES    4
 
 using namespace daisy;
 using namespace daisy::seed;
@@ -14,28 +14,28 @@ enum INS {
     I_FLT1 = 0,
     I_FLT2 = 1,
     I_FLT3 = 2,
-    // ENV1 = 3,
-    // ENV2 = 4,
-    // ENV3 = 5,
-    I_REVERB = 3,
-    // DELAY = 4,
-    I_SPEAKERS = 4,
+    I_ENV1 = 3,
+    I_ENV2 = 4,
+    I_ENV3 = 5,
+    I_REVERB = 4,
+    I_DELAY = 5,
+    I_SPEAKERS = 6,
 };
 
 enum OUTS {
     O_OSC1 = 0,
     O_OSC2 = 1,
     O_OSC3 = 2,
-    // NOISE1 = 3,
-    // NOISE2 = 4,
-    O_FLT1 = 3,
-    O_FLT2 = 4,
-    O_FLT3 = 5,
-    // ENV1 = 8,
-    // ENV2 = 9,
-    // ENV3 = 10,
-    O_REVERB = 6,
-    // DELAY = 12,
+    O_NOISE1 = 3,
+    O_NOISE2 = 4,
+    O_FLT1 = 5,
+    O_FLT2 = 6,
+    O_FLT3 = 7,
+    O_ENV1 = 8,
+    O_ENV2 = 9,
+    O_ENV3 = 10,
+    O_REVERB = 11,
+    O_DELAY = 12,
 };
 
 DaisySeed hw;
@@ -48,11 +48,10 @@ Biquad     flt2;
 Biquad     flt3;
 ReverbSc   reverb;
 
-GPIO  power;
-GPIO  outPins[NUM_OUT_PINS];
-GPIO  inPins[NUM_IN_PINS];
-float levels[8 * NUM_MUXES];
-/*
+GPIO power;
+GPIO outPins[NUM_OUT_PINS];
+GPIO inPins[NUM_IN_PINS];
+/* LEVELS
 0: OSC1 S
 1: OSC1 F
 2: OSC1 L
@@ -72,7 +71,8 @@ float levels[8 * NUM_MUXES];
 16: REV C
 17: REV M
 */
-int patchbay[NUM_OUT_PINS][NUM_IN_PINS];
+float levels[8 * NUM_MUXES];
+int   patchbay[NUM_OUT_PINS][NUM_IN_PINS];
 
 // for 3-way switch inputs
 int pot_switch(float n) {
@@ -98,7 +98,7 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         return;
     }
 
-    // read each active pot
+    // read inputs
     for (int i = 0; i < NUM_MUXES; i++) {
         for (int j = 0; j < 8; j++) {
             levels[(i * 8) + j] = hw.adc.GetMuxFloat(i, j);
@@ -159,20 +159,21 @@ void AudioCallback(AudioHandle::InputBuffer  in,
 
     // generate samples
     for (size_t i = 0; i < size; i++) {
-        float sig1 = osc1.Process();
-        float sig2 = osc2.Process();
-        float sig3 = osc3.Process();
+        float sig1, sig2, sig3, verb_sig;
+        verb_sig = 0.0f;
+        sig1 = osc1.Process();
+        sig2 = osc2.Process();
+        sig3 = osc3.Process();
 
         // osc1 out
         if (patchbay[O_OSC1][I_FLT1]) {
             sig1 = flt1.Process(sig1);
         } else if (patchbay[O_OSC1][I_FLT2]) {
-            sig1 = flt2.Process(sig1);
+            sig2 = flt2.Process(sig1);
         } else if (patchbay[O_OSC1][I_FLT3]) {
-            sig1 = flt3.Process(sig1);
+            sig3 = flt3.Process(sig1);
         } else if (patchbay[O_OSC1][I_REVERB]) {
-            float sig1_copy = sig1;
-            reverb.Process(sig1_copy, sig1_copy, &sig1, &sig1);
+            reverb.Process(sig1, sig1, &verb_sig, &verb_sig);
         } else if (!patchbay[O_OSC1][I_SPEAKERS]) {
             sig1 = 0.0f;
         }
@@ -241,7 +242,7 @@ int main(void) {
     adc_config[0].InitMux(A0, 8, D1, D2, D3);
     adc_config[1].InitMux(A1, 8, D4, D5, D6);
     adc_config[2].InitMux(A2, 8, D7, D8, D9);
-    // adc_config[3].InitMux(A3, 8, D10, D11, D12);
+    adc_config[3].InitMux(A3, 8, D10, D11, D12);
     hw.adc.Init(adc_config, NUM_MUXES);
     hw.adc.Start();
 
@@ -265,8 +266,6 @@ int main(void) {
 
     // Audio start
     hw.StartAudio(AudioCallback);
-    hw.StartLog();
-    int log_patchbay = 0;
 
     while (1) {
         // read patchbay connections
@@ -282,16 +281,6 @@ int main(void) {
             outPins[i].Write(0);
         }
 
-        if (log_patchbay % 100 == 0) {
-            for (int i = 0; i < NUM_OUT_PINS; i++) {
-                for (int j = 0; j < NUM_IN_PINS; j++) {
-                    hw.Print("%d ", patchbay[i][j]);
-                }
-                hw.PrintLine("");
-            }
-        }
-
-        log_patchbay++;
         System::Delay(100);
     }
 }

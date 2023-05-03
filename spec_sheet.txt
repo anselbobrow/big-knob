@@ -1,0 +1,158 @@
+﻿SPECS
+# out pins: 13
+# in pins: 9
+# knobs: 35 (incl. n-way switches)
+# digital GPIO available: 19
+# analog/digital GPIO available: 12 (x8 with multiplexers)
+
+
+PATCHBAY
+To read a cable patch, write HIGH to an ‘out’ pin and then read all relevant ‘in’ pins to see where the signal is sent. Special handling is necessary to prevent feedback loops (for now). IN pins must be set to float and pulled-low. OUT pins are then set high and connected to one IN.
+
+
+OUT PINS
+1. osc 1 out
+2. osc 2 out
+3. osc 3 out
+4. noise 1 out
+5. noise 2 out
+6. filt 1 out
+7. filt 2 out
+8. filt 3 out
+9. env 1 out
+10. env 2 out
+11. env 3 out
+12. reverb out
+13. delay out
+
+
+IN PINS
+1. filt 1 in
+2. filt 2 in
+3. filt 3 in
+4. env 1 in
+5. env 2 in
+6. env 3 in
+7. reverb in
+8. delay in
+9. speakers
+
+
+________________
+
+
+MULTIPLEXER LABELING
+N.A -> A (chip #N)
+N.B -> B
+N.C -> C
+N.out -> analog out
+N.0-7 -> inputs 0-7
+
+
+POTS TO MULTIPLEXER INPUTS
+OSC 1 (shape, freq, level) (*3-way discrete input)
+1.0 S*
+1.1 F
+1.2 L
+OSC 2
+1.3 S*
+1.4 F
+1.5 L
+OSC 3
+1.6 S*
+1.7 F
+2.0 L
+ENV 1 (attack, decay)
+2.1 A
+2.2 D
+ENV 2
+2.3 A
+2.4 D
+ENV 3
+2.5 A
+2.6 D
+FLT 1 (type, cutoff, resonance)
+2.7 T*
+3.0 C
+3.1 R
+FLT 2
+3.2 T*
+3.3 C
+3.4 R
+FLT 3
+3.5 T*
+3.6 C
+3.7 R
+REVERB (predelay, size, decay, mix)
+4.0 P
+4.1 S
+4.2 D
+4.3 M
+DELAY (time, feedback, stereo, mix)
+4.4 T
+4.5 F
+4.6 S
+4.7 M
+
+
+DAISY PINOUT
+available: A: 0-11, D: 0-14, 26, 27, 29, 30, D if not using corresponding A: 15-25, 28
+
+
+A0: 1.out
+A1: 2.out
+A2 3.out
+A3 4.out
+
+
+D0 ON/OFF
+
+
+D1 1.A
+D2 1.B
+D3 1.C
+
+
+D4 2.A
+D5 2.B
+D6 2.C
+
+
+D7 3.A
+D8 3.B
+D9 3.C
+
+
+D10 4.A
+D11 4.B
+D12 4.C
+
+
+D13 OSC 1 OUT
+D14 OSC 2 OUT
+D19 OSC 3 OUT
+D20 NOISE 1 OUT
+D21 NOISE 2 OUT
+D23 FILT 1 OUT
+D25 FILT 2 OUT
+D27 FILT 3 OUT
+D29 ENV 1 OUT
+ENV 2 OUT
+ENV 3 OUT
+REVERB OUT
+DELAY OUT
+
+
+D22 FILT 1 IN
+D24 FILT 2 IN
+D26 FILT 3 IN
+D28 ENV 1 IN
+D30 ENV 2 IN
+ENV 3 IN
+REVERB IN
+DELAY IN
+SPEAKERS
+
+
+SIGNAL FLOW
+Function isActive() returns T/F based on info from PATCH INFORMATION. At POT POLLING RATE, levels from all active inputs are read and updated in a separate global LEVELS data structure. Audio callback uses global levels to define the synthesis algorithm. Audio callback also uses PATCH INFORMATION to generate audio signals based on the physical connections.
