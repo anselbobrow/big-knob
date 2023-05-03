@@ -10,45 +10,69 @@ using namespace daisy;
 using namespace daisy::seed;
 using namespace daisysp;
 
-enum struct INS {
-    FLT1 = 0,
-    FLT2 = 1,
-    FLT3 = 2,
+enum INS {
+    I_FLT1 = 0,
+    I_FLT2 = 1,
+    I_FLT3 = 2,
     // ENV1 = 3,
     // ENV2 = 4,
     // ENV3 = 5,
-    REVERB = 3,
+    I_REVERB = 3,
     // DELAY = 4,
-    SPEAKERS = 4,
+    I_SPEAKERS = 4,
 };
 
-enum struct OUTS {
-    OSC1 = 0,
-    OSC2 = 1,
-    OSC3 = 2,
+enum OUTS {
+    O_OSC1 = 0,
+    O_OSC2 = 1,
+    O_OSC3 = 2,
     // NOISE1 = 3,
     // NOISE2 = 4,
-    FLT1 = 3,
-    FLT2 = 4,
-    FLT3 = 5,
+    O_FLT1 = 3,
+    O_FLT2 = 4,
+    O_FLT3 = 5,
     // ENV1 = 8,
     // ENV2 = 9,
     // ENV3 = 10,
-    REVERB = 6,
+    O_REVERB = 6,
     // DELAY = 12,
 };
 
 DaisySeed hw;
 
 Oscillator osc1;
+Oscillator osc2;
+Oscillator osc3;
 Biquad     flt1;
+Biquad     flt2;
+Biquad     flt3;
 ReverbSc   reverb;
 
-float levels[17];
 GPIO  power;
 GPIO  outPins[NUM_OUT_PINS];
 GPIO  inPins[NUM_IN_PINS];
-int   patchbay[NUM_OUT_PINS][NUM_IN_PINS];
+float levels[8 * NUM_MUXES];
+/*
+0: OSC1 S
+1: OSC1 F
+2: OSC1 L
+3: OSC2 S
+4: OSC2 F
+5: OSC2 L
+6: OSC3 S
+7: OSC3 F
+8: OSC3 L
+9: FLT1 C
+10: FLT1 R
+11: FLT2 C
+12: FLT2 R
+13: FLT3 C
+14: FLT3 R
+15: REV F
+16: REV C
+17: REV M
+*/
+int patchbay[NUM_OUT_PINS][NUM_IN_PINS];
 
 // for 3-way switch inputs
 int pot_switch(float n) {
@@ -74,17 +98,15 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         return;
     }
 
-    for (int i = 0; i < 4; i++) {
-        levels[i] = hw.adc.GetMuxFloat(0, i);
+    // read each active pot
+    for (int i = 0; i < NUM_MUXES; i++) {
+        for (int j = 0; j < 8; j++) {
+            levels[(i * 8) + j] = hw.adc.GetMuxFloat(i, j);
+        }
     }
 
-    // set levels
-    osc1.SetFreq(levels[0] * 1000);
-
-    flt1.SetRes(levels[2] * 0.5);
-    flt1.SetCutoff(100 + (levels[3] * 1000));
-
-    int wf = pot_switch(levels[1]);
+    // osc1
+    int wf = pot_switch(levels[0]);
     if (wf == 1) {
         osc1.SetWaveform(Oscillator::WAVE_SIN);
     } else if (wf == 2) {
@@ -92,18 +114,107 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     } else if (wf == 3) {
         osc1.SetWaveform(Oscillator::WAVE_SAW);
     }
+    osc1.SetFreq(levels[1] * 1000);
+    osc1.SetAmp(levels[2] * 0.95);
+
+    // osc2
+    wf = pot_switch(levels[3]);
+    if (wf == 1) {
+        osc2.SetWaveform(Oscillator::WAVE_SIN);
+    } else if (wf == 2) {
+        osc2.SetWaveform(Oscillator::WAVE_TRI);
+    } else if (wf == 3) {
+        osc2.SetWaveform(Oscillator::WAVE_SAW);
+    }
+    osc2.SetFreq(levels[4] * 1000);
+    osc2.SetAmp(levels[5] * 0.95);
+
+    // osc3
+    wf = pot_switch(levels[6]);
+    if (wf == 1) {
+        osc3.SetWaveform(Oscillator::WAVE_SIN);
+    } else if (wf == 2) {
+        osc3.SetWaveform(Oscillator::WAVE_TRI);
+    } else if (wf == 3) {
+        osc3.SetWaveform(Oscillator::WAVE_SAW);
+    }
+    osc3.SetFreq(levels[7] * 1000);
+    osc3.SetAmp(levels[8] * 0.95);
+
+    // flt1
+    flt1.SetCutoff(levels[9] * hw.AudioSampleRate() / 2.0f);
+    flt1.SetRes(levels[10] * 0.5);
+
+    // flt2
+    flt2.SetCutoff(levels[11] * hw.AudioSampleRate() / 2.0f);
+    flt2.SetRes(levels[12] * 0.5);
+
+    // flt3
+    flt3.SetCutoff(levels[13] * hw.AudioSampleRate() / 2.0f);
+    flt3.SetRes(levels[14] * 0.5);
+
+    // reverb
+    reverb.SetFeedback(levels[15] * 0.9);
+    reverb.SetLpFreq(levels[16] * (hw.AudioSampleRate() / 2.0f));
 
     // generate samples
     for (size_t i = 0; i < size; i++) {
         float sig1 = osc1.Process();
+        float sig2 = osc2.Process();
+        float sig3 = osc3.Process();
 
-        if (patchbay[OUTS::OSC1][INS::FLT1]) {
+        // osc1 out
+        if (patchbay[O_OSC1][I_FLT1]) {
             sig1 = flt1.Process(sig1);
-        } else if (patchbay[OUTS::OSC1][INS::FLT2]) {
+        } else if (patchbay[O_OSC1][I_FLT2]) {
             sig1 = flt2.Process(sig1);
+        } else if (patchbay[O_OSC1][I_FLT3]) {
+            sig1 = flt3.Process(sig1);
+        } else if (patchbay[O_OSC1][I_REVERB]) {
+            float sig1_copy = sig1;
+            reverb.Process(sig1_copy, sig1_copy, &sig1, &sig1);
+        } else if (!patchbay[O_OSC1][I_SPEAKERS]) {
+            sig1 = 0.0f;
         }
 
-        float sig_out = (sig1 * 0.33) + (sig2 * 0.33) + (sig3 * 0.33);
+        // osc2 out
+        if (patchbay[O_OSC2][I_FLT1]) {
+            sig2 = flt1.Process(sig2);
+        } else if (patchbay[O_OSC2][I_FLT2]) {
+            sig2 = flt2.Process(sig2);
+        } else if (patchbay[O_OSC2][I_FLT3]) {
+            sig2 = flt3.Process(sig2);
+        } else if (patchbay[O_OSC2][I_REVERB]) {
+            float sig2_copy = sig2;
+            reverb.Process(sig2_copy, sig2_copy, &sig2, &sig2);
+        } else if (!patchbay[O_OSC2][I_SPEAKERS]) {
+            sig2 = 0.0f;
+        }
+
+        // osc3 out
+        if (patchbay[O_OSC3][I_FLT1]) {
+            sig3 = flt1.Process(sig3);
+        } else if (patchbay[O_OSC3][I_FLT2]) {
+            sig3 = flt2.Process(sig3);
+        } else if (patchbay[O_OSC3][I_FLT3]) {
+            sig3 = flt3.Process(sig3);
+        } else if (patchbay[O_OSC3][I_REVERB]) {
+            float sig3_copy = sig3;
+            reverb.Process(sig3_copy, sig3_copy, &sig3, &sig3);
+        } else if (!patchbay[O_OSC3][I_SPEAKERS]) {
+            sig3 = 0.0f;
+        }
+
+        // normalize
+        float sig_out;
+        if (sig1 && sig2 && sig3) {
+            sig_out = (sig1 * 0.33) + (sig2 * 0.33) + (sig3 * 0.33);
+        } else if ((sig1 && sig2) || (sig1 && sig3) || (sig2 && sig3)) {
+            sig_out = (sig1 * 0.5) + (sig2 * 0.5) + (sig3 * 0.5);
+        } else {
+            sig_out = sig1 + sig2 + sig3;
+        }
+
         out[0][i] = sig_out;
         out[1][i] = sig_out;
     }
@@ -114,25 +225,48 @@ int main(void) {
 
     // Oscillators setup
     osc1.Init(hw.AudioSampleRate());
+    osc2.Init(hw.AudioSampleRate());
+    osc3.Init(hw.AudioSampleRate());
 
     // Filters setup
     flt1.Init(hw.AudioSampleRate());
+    flt2.Init(hw.AudioSampleRate());
+    flt3.Init(hw.AudioSampleRate());
+
+    // FXs setup
+    reverb.Init(hw.AudioSampleRate());
 
     // adc setup
-    AdcChannelConfig adc_config;
-    adc_config.InitMux(A0, 8, D10, D11, D12);
-    hw.adc.Init(&adc_config, 1);
+    AdcChannelConfig adc_config[NUM_MUXES];
+    adc_config[0].InitMux(A0, 8, D1, D2, D3);
+    adc_config[1].InitMux(A1, 8, D4, D5, D6);
+    adc_config[2].InitMux(A2, 8, D7, D8, D9);
+    // adc_config[3].InitMux(A3, 8, D10, D11, D12);
+    hw.adc.Init(adc_config, NUM_MUXES);
     hw.adc.Start();
 
     // GPIO setup
     power.Init(D0, GPIO::Mode::INPUT, GPIO::Pull::NOPULL);
-    // osc1 out
-    outPins[0].Init(D14, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
-    // flt1 in
-    inPins[0].Init(D13, GPIO::Mode::INPUT, GPIO::Pull::PULLDOWN);
+
+    // init patchbay outs and ins
+    outPins[O_OSC1].Init(D13, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
+    outPins[O_OSC2].Init(D14, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
+    outPins[O_OSC2].Init(D19, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
+    outPins[O_FLT1].Init(D20, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
+    outPins[O_FLT2].Init(D21, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
+    outPins[O_FLT3].Init(D22, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
+    outPins[O_REVERB].Init(D23, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
+
+    inPins[I_FLT1].Init(D24, GPIO::Mode::INPUT, GPIO::Pull::PULLDOWN);
+    inPins[I_FLT2].Init(D25, GPIO::Mode::INPUT, GPIO::Pull::PULLDOWN);
+    inPins[I_FLT3].Init(D26, GPIO::Mode::INPUT, GPIO::Pull::PULLDOWN);
+    inPins[I_REVERB].Init(D27, GPIO::Mode::INPUT, GPIO::Pull::PULLDOWN);
+    inPins[I_SPEAKERS].Init(D28, GPIO::Mode::INPUT, GPIO::Pull::PULLDOWN);
 
     // Audio start
     hw.StartAudio(AudioCallback);
+    hw.StartLog();
+    int log_patchbay = 0;
 
     while (1) {
         // read patchbay connections
@@ -148,6 +282,16 @@ int main(void) {
             outPins[i].Write(0);
         }
 
+        if (log_patchbay % 100 == 0) {
+            for (int i = 0; i < NUM_OUT_PINS; i++) {
+                for (int j = 0; j < NUM_IN_PINS; j++) {
+                    hw.Print("%d ", patchbay[i][j]);
+                }
+                hw.PrintLine("");
+            }
+        }
+
+        log_patchbay++;
         System::Delay(100);
     }
 }
